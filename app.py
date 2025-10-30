@@ -1,47 +1,51 @@
 import streamlit as st
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
-import importlib
 import os
 
-st.set_page_config(page_title="🍽️ Central Menu Assistant", layout="wide")
-st.markdown("<h1 style='text-align:center; color:#ff6600;'>🍽️ دستیار مرکزی منو</h1>", unsafe_allow_html=True)
-
-# API Key برای دستیار
+# API Key
 api_key = os.environ.get("GOOGLE_API_KEY")
-MODEL_NAME = "gemini-2.0-flash-exp"
-central_llm = ChatGoogleGenerativeAI(model=MODEL_NAME, api_key=api_key)
 
-# لیست رستوران‌ها
+# مدل Google Gemini
+MODEL_NAME = "gemini-2.0-flash-exp"
+llm = ChatGoogleGenerativeAI(model=MODEL_NAME, api_key=api_key)
+
+# تعریف منوهای دو رستوران
 restaurants = {
-    "تاج محل": "restaurants.taj_mahal",
-    "بلا ایتالیا": "restaurants.bella_italia"
+    "رستوران آلفا": {
+        "پیتزا مارگاریتا": "خمیر نازک، سس گوجه، پنیر موتزارلا، ریحان",
+        "برگر کلاسیک": "گوشت گوساله، نان، پنیر چدار، کاهو، گوجه، سس مخصوص"
+    },
+    "رستوران بتا": {
+        "املت سبزیجات": "تخم مرغ، فلفل دلمه‌ای، گوجه، سبزیجات تازه",
+        "پنکیک با عسل": "آرد، شیر، تخم مرغ، عسل، کره"
+    }
 }
 
-# ===== دستیار مرکزی =====
-st.subheader("💬 دستیار مرکزی")
-central_question = st.text_input("می‌خوای یه چیزی درباره رستوران‌ها یا منو بدونی؟", key="central_input")
-if central_question:
+# دستیار مرکزی
+def central_assistant(question):
     system_prompt = (
-        "تو دستیار مرکزی هستی. درباره‌ی رستوران‌ها و منوها اطلاعات میدی و می‌تونی "
-        "به کاربر کمک کنی تا رستوران مناسب رو انتخاب کنه. "
-        "اگر سوال ربطی به رستوران‌ها یا منوها نداشت، با لحنی دوستانه بگو: "
-        "«من فقط درباره‌ی رستوران‌ها و منوها می‌تونم کمکت کنم :)»\n\n"
-        f"لیست رستوران‌ها:\n{list(restaurants.keys())}"
+        "تو دستیار رستوران هستی و میتونی درباره‌ی رستوران‌ها و منوها جواب بدی. "
+        "اگر سوال مرتبط نبود، با خوشرویی بگو: «من فقط درباره‌ی رستوران‌ها و منوها می‌تونم کمک کنم :)»\n\n"
+        f"رستوران‌ها و منوها:\n{restaurants}"
     )
-    msg = [HumanMessage(content=f"{system_prompt}\n\nسؤال کاربر: {central_question}")]
-    answer = central_llm.invoke(msg)
-    st.markdown(f"<div style='background-color:#f0f0f0; padding:10px; border-radius:10px;'>{answer}</div>", unsafe_allow_html=True)
+    msg = [HumanMessage(content=f"{system_prompt}\n\nسؤال: {question}")]
+    response = llm.invoke(msg)
+    return response.content
 
-# ===== انتخاب رستوران =====
-st.subheader("🏠 انتخاب رستوران")
-selected = st.selectbox("رستوران مورد نظر خود را انتخاب کنید:", list(restaurants.keys()))
-if st.button("ورود به رستوران"):
-    st.session_state["restaurant"] = selected
-    st.experimental_rerun()
+st.title("🍽️ انتخاب رستوران و دستیار هوشمند")
 
-# ===== لود صفحه رستوران =====
-if "restaurant" in st.session_state:
-    restaurant_module = restaurants[st.session_state["restaurant"]]
-    st.markdown(f"### شما وارد {st.session_state['restaurant']} شدید")
-    restaurant_page = importlib.import_module(restaurant_module)
+# انتخاب رستوران
+selected_restaurant = st.selectbox("رستوران مورد نظر را انتخاب کنید:", list(restaurants.keys()))
+
+st.subheader(f"📋 منوی {selected_restaurant}")
+for dish, desc in restaurants[selected_restaurant].items():
+    st.markdown(f"- **{dish}**: {desc}")
+
+# سوال و جواب
+st.markdown("---")
+st.subheader("💬 پرسش و پاسخ با دستیار")
+question = st.text_input("سوال خود را بنویسید یا بپرسید:")
+if question:
+    answer = central_assistant(question)
+    st.markdown(f"**🍳 پاسخ دستیار:** {answer}")
